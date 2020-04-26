@@ -37,6 +37,9 @@ var (
 
 	sessmgr *session.Manager
 	mu      sync.Mutex
+
+	initVersion    = flag.String("apiversion", "3", "version 2 or 3 of ETCD api")
+	initEndpoint = flag.String("endpoint", "127.0.0.1:2379", "endpoint to ETCD server at startup")
 )
 
 type userInfo struct {
@@ -51,6 +54,12 @@ func main() {
 
 	flag.CommandLine.Parse(os.Args[1:])
 	separator = *sep
+
+	
+
+	log.Printf("Etcd Version: " + *initVersion)
+	log.Printf("Endpoint: " + *initEndpoint)
+
 
 	middleware := func(fns ...func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -79,11 +88,15 @@ func main() {
 	// dirctory mode
 	http.HandleFunc("/v3/getpath", middleware(nothing, getPath))
 
+	// wd, err := os.Getwd()
+	// assetPath := rootPath+"/../assets"
 	wd, err := os.Executable()
 	if err != nil {
 		log.Fatal(err)
 	}
 	rootPath := filepath.Dir(wd)
+	assetPath := rootPath+"/assets"
+	
 
 	// Session management
 	sessmgr, err = session.NewManager("memory", "_etcdkeeper_session", 86400)
@@ -95,8 +108,10 @@ func main() {
 	})
 	//log.Println(http.Dir(rootPath + "/assets"))
 
-	http.Handle("/", http.FileServer(http.Dir(rootPath + "/assets"))) // view static directory
+	http.Handle("/etcdkeeper/", http.FileServer(http.Dir(assetPath))) // view static directory
+	http.Handle("/framework/", http.FileServer(http.Dir(assetPath)))  // view static directory
 
+	http.HandleFunc("/", middleware(nothing, startwebui))
 	log.Printf("listening on %s:%d\n", *host, *port)
 	err = http.ListenAndServe(*host + ":" + strconv.Itoa(*port), nil)
 	if err != nil {
@@ -108,6 +123,26 @@ func nothing(_ http.ResponseWriter, _ *http.Request) {
 	// Nothing
 }
 
+func startwebui(w http.ResponseWriter, r *http.Request) {
+	addCookie(w, "etcd-version", *initVersion)
+	addCookie(w, "etcd-endpoint", *initEndpoint)
+
+	target := "http://" + r.Host + "/etcdkeeper"
+	log.Printf("redirect to: %s", target)
+	http.Redirect(w, r, target,
+		// see comments below and consider the codes 308, 302, or 301
+		http.StatusTemporaryRedirect)
+}
+
+func addCookie(w http.ResponseWriter, name string, value string) {
+	expire := time.Now().AddDate(0, 0, 30)
+	cookie := http.Cookie{
+		Name:    name,
+		Value:   value,
+		Expires: expire,
+	}
+	http.SetCookie(w, &cookie)
+}
 
 //func v2request(w http.ResponseWriter, r *http.Request){
 //	if err := r.ParseForm(); err != nil {

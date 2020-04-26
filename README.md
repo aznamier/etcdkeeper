@@ -29,6 +29,11 @@
         use etcd auth
   -timeout int
         ETCD client connect timeout
+
+  -v2 string
+        version of ETCD api "2" or "3"
+  -endpoint string
+        ETCD endpoint
 ```
 * Open your browser and enter the address: http://127.0.0.1:8080/etcdkeeper
 * Click on the version of the title to select the version of ETCD. The default is V3. Reopening will remember your choice.
@@ -54,6 +59,7 @@ Because the etcdv3 version uses the new storage concept, without the catalog con
 
 ## Docker
 Etdkeeper official image. (https://hub.docker.com/r/evildecay/etcdkeeper)
+* check dockerfile for configurable parameters via env variables
 
 ## Screenshots
 ![image](https://github.com/evildecay/etcdkeeper/blob/master/screenshots/ui.png)
